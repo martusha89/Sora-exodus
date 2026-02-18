@@ -13,11 +13,10 @@ export function loadProgress(outputDir) {
   if (existsSync(filePath)) {
     const data = JSON.parse(readFileSync(filePath, 'utf-8'));
     return {
-      completed: new Set(data.completed || []),
-      failed: new Map(Object.entries(data.failed || {})),
       totalIds: data.total_ids || 0,
       lastRun: data.last_run || null,
-      ...data,
+      completed: new Set(data.completed || []),
+      failed: new Map(Object.entries(data.failed || {})),
     };
   }
 

@@ -78,4 +78,4 @@ export const DEFAULT_OUTPUT_DIR = 'sora-export';
 /**
  * Default delay between requests (ms).
  */
-export const DEFAULT_DELAY = 2500;
+export const DEFAULT_DELAY = 500;

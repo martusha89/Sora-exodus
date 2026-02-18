@@ -1,29 +1,39 @@
 import { join } from 'path';
 import { createWriteStream, writeFileSync } from 'fs';
 import { pipeline } from 'stream/promises';
-import { Readable } from 'stream';
+import https from 'https';
+import http from 'http';
 import { loadProgress, saveProgress, markCompleted, markFailed, isCompleted } from './progress.js';
 import { log, sleepWithJitter, ensureDir, writeJson, truncate, DEFAULT_DELAY } from './utils.js';
 import { loadCollectedIds } from './collect.js';
 
 /**
- * Download a file from a URL.
- * Sora image URLs are signed Azure Blob Storage URLs — no auth needed, just fetch.
+ * Download a file directly with Node.js — no browser needed.
+ * Sora image URLs are signed Azure Blob Storage URLs, auth is in the URL itself.
  */
-async function downloadFile(page, url, destPath, retries = 3) {
+async function downloadFile(url, destPath, retries = 3) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      const buffer = await page.evaluate(async (fileUrl) => {
-        const response = await fetch(fileUrl);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const blob = await response.blob();
-        const arrayBuffer = await blob.arrayBuffer();
-        return Array.from(new Uint8Array(arrayBuffer));
-      }, url);
-
-      const uint8 = new Uint8Array(buffer);
-      const stream = Readable.from(Buffer.from(uint8));
-      await pipeline(stream, createWriteStream(destPath));
+      await new Promise((resolve, reject) => {
+        const client = url.startsWith('https') ? https : http;
+        client.get(url, (res) => {
+          if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+            // Follow redirect
+            downloadFile(res.headers.location, destPath, 1).then(resolve).catch(reject);
+            return;
+          }
+          if (res.statusCode !== 200) {
+            res.resume();
+            reject(new Error(`HTTP ${res.statusCode}`));
+            return;
+          }
+          const file = createWriteStream(destPath);
+          res.pipe(file);
+          file.on('finish', () => { file.close(); resolve(true); });
+          file.on('error', reject);
+          res.on('error', reject);
+        }).on('error', reject);
+      });
       return true;
     } catch (err) {
       if (attempt === retries) {
@@ -97,7 +107,7 @@ export async function exportGenerations(page, outputDir, options = {}) {
       if (gen.source_url) {
         const ext = getExtension(gen.source_url);
         const filename = `image${ext}`;
-        const ok = await downloadFile(page, gen.source_url, join(itemDir, filename));
+        const ok = await downloadFile(gen.source_url, join(itemDir, filename));
         if (ok) downloadedFiles.push(filename);
       }
 
@@ -105,7 +115,7 @@ export async function exportGenerations(page, outputDir, options = {}) {
       if (gen.original_url && gen.original_url !== gen.source_url) {
         const ext = getExtension(gen.original_url);
         const filename = `original${ext}`;
-        const ok = await downloadFile(page, gen.original_url, join(itemDir, filename));
+        const ok = await downloadFile(gen.original_url, join(itemDir, filename));
         if (ok) downloadedFiles.push(filename);
       }
 
@@ -113,7 +123,7 @@ export async function exportGenerations(page, outputDir, options = {}) {
       if (gen.video_url) {
         const ext = getExtension(gen.video_url);
         const filename = `video${ext}`;
-        const ok = await downloadFile(page, gen.video_url, join(itemDir, filename));
+        const ok = await downloadFile(gen.video_url, join(itemDir, filename));
         if (ok) downloadedFiles.push(filename);
       }
 
