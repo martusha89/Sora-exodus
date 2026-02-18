@@ -1,0 +1,32 @@
+{
+  "name": "sora-exodus",
+  "version": "1.0.0",
+  "description": "Bulk export your Sora generations (images, videos, prompts) before OpenAI kills the platform",
+  "type": "module",
+  "bin": {
+    "sora-exodus": "./bin/cli.js"
+  },
+  "scripts": {
+    "start": "node bin/cli.js",
+    "collect": "node bin/cli.js collect",
+    "export": "node bin/cli.js export",
+    "status": "node bin/cli.js status"
+  },
+  "keywords": [
+    "sora",
+    "openai",
+    "export",
+    "backup",
+    "playwright",
+    "scraper",
+    "bulk-download"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "playwright": "^1.50.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

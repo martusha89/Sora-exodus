@@ -1,0 +1,7 @@
+node_modules/
+sora-export/
+*.log
+.env
+debug*.js
+debug*.json
+debug*.html
