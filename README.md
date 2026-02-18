@@ -133,6 +133,14 @@ Sora's image URLs are signed and expire after about a week. If you collected but
 **Browser won't launch**
 Make sure Chrome is installed. The tool uses Playwright with your installed Chrome, not a bundled browser.
 
+## Disclaimer
+
+This tool is intended for personal use to export your own Sora generations. It accesses Sora's backend API using your own authenticated session to download content you created. No official export tool is provided by OpenAI.
+
+Automated access may not be explicitly permitted by OpenAI's Terms of Service. Use this tool at your own discretion and risk. The authors are not responsible for any consequences arising from its use.
+
+Users in the EU/UK may have a right to data portability under GDPR (Article 20).
+
 ## License
 
 MIT
