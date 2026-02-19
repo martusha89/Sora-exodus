@@ -51,6 +51,9 @@ sora-exodus export
 
 # Check progress
 sora-exodus status
+
+# Browse your exports in a local gallery
+sora-exodus gallery
 ```
 
 ### Options
@@ -60,6 +63,33 @@ sora-exodus status
 | `--output, -o` | Output directory | `./sora-export` |
 | `--delay, -d` | Delay between downloads (ms) | `2500` |
 | `--headless` | Run browser without visible window | `false` |
+| `--port, -p` | Gallery server port | `3456` |
+
+## Gallery
+
+After exporting, browse your generations in a local web gallery:
+
+```bash
+sora-exodus gallery
+```
+
+Opens a searchable grid at `http://localhost:3456` with:
+- **Thumbnails** for all images (auto-generated on first run)
+- **Full-text prompt search** with ranked results
+- **Filters** by type, quality, dimensions, date range, favorites
+- **Lightbox** with full-size images/videos, metadata panel, keyboard navigation
+- **Video preview** on hover, full playback in lightbox
+- **Variant grouping** to see all outputs from the same prompt
+
+First run imports metadata and generates thumbnails (~6 minutes for 11k generations). Subsequent runs start instantly.
+
+```bash
+sora-exodus gallery              # Default port 3456
+sora-exodus gallery -p 8080      # Custom port
+sora-exodus gallery -o ./backup  # Point to different export dir
+```
+
+Requires Node.js 22+ (uses built-in SQLite).
 
 ## Resume support
 
@@ -83,6 +113,9 @@ sora-export/
     │   ├── metadata.json
     │   └── video.mp4       # Video generation
     └── ...
+├── gallery-data/              # Created by `sora-exodus gallery`
+│   ├── gallery.db             # SQLite database with FTS5 index
+│   └── thumbs/                # 300px webp thumbnails
 ```
 
 ### metadata.json
@@ -106,7 +139,7 @@ sora-export/
 
 ## Requirements
 
-- **Node.js 18+**
+- **Node.js 18+** (22+ for gallery feature)
 - **Google Chrome** installed
 - An account on [sora.chatgpt.com](https://sora.chatgpt.com) with generations to export
 
