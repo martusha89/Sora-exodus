@@ -17,6 +17,7 @@ const HELP = `
     collect     Collect all generation data via Sora API
     export      Download images/videos for collected generations
     status      Show export progress
+    gallery     Browse your exported generations in a local web gallery
 
   OPTIONS
     --output, -o <dir>     Output directory (default: ./sora-export)
@@ -31,6 +32,8 @@ const HELP = `
     npx sora-exodus export             # Download (after collecting)
     npx sora-exodus status             # Check progress
     npx sora-exodus -o ./my-backup     # Custom output directory
+    npx sora-exodus gallery            # Browse exports in local gallery
+    npx sora-exodus gallery -p 8080    # Gallery on custom port
 
   FIRST RUN
     A browser window will open. Log into sora.chatgpt.com if prompted.
@@ -53,7 +56,12 @@ function parseArgs(argv) {
       case 'export':
       case 'run':
       case 'status':
+      case 'gallery':
         options.command = arg;
+        break;
+      case '--port':
+      case '-p':
+        options.port = parseInt(args[++i], 10);
         break;
       case '--output':
       case '-o':
@@ -124,6 +132,42 @@ function showStatus(outputDir) {
   }
 }
 
+async function launchGallery(options) {
+  const { join, dirname } = await import('path');
+  const { fileURLToPath } = await import('url');
+  const { existsSync } = await import('fs');
+  const { mkdir } = await import('fs/promises');
+
+  const __dirname = dirname(fileURLToPath(import.meta.url));
+  const generationsDir = join(options.output, 'generations');
+
+  if (!existsSync(generationsDir)) {
+    console.error(`  No generations found at: ${generationsDir}`);
+    console.error('  Run `sora-exodus export` first to download your generations.');
+    process.exit(1);
+  }
+
+  const port = options.port || 3456;
+  const dataDir = join(options.output, 'gallery-data');
+  const dbPath = join(dataDir, 'gallery.db');
+  const thumbDir = join(dataDir, 'thumbs');
+  const htmlPath = join(__dirname, '..', 'gallery', 'index.html');
+
+  await mkdir(thumbDir, { recursive: true });
+
+  const { runImport } = await import('../gallery/import.js');
+  const { startServer } = await import('../gallery/server.js');
+
+  if (!existsSync(dbPath)) {
+    await runImport(dbPath, thumbDir, generationsDir);
+  } else {
+    console.log('  Gallery database found. Skipping import.');
+    console.log('  (Delete gallery-data/ to force reimport)\n');
+  }
+
+  startServer(port, dbPath, thumbDir, generationsDir, htmlPath);
+}
+
 async function main() {
   const options = parseArgs(process.argv);
 
@@ -134,6 +178,11 @@ async function main() {
 
   if (options.command === 'status') {
     showStatus(options.output);
+    return;
+  }
+
+  if (options.command === 'gallery') {
+    await launchGallery(options);
     return;
   }
 

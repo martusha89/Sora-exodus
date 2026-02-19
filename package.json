@@ -10,7 +10,8 @@
     "start": "node bin/cli.js",
     "collect": "node bin/cli.js collect",
     "export": "node bin/cli.js export",
-    "status": "node bin/cli.js status"
+    "status": "node bin/cli.js status",
+    "gallery": "node bin/cli.js gallery"
   },
   "keywords": [
     "sora",
@@ -24,7 +25,8 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "playwright": "^1.50.0"
+    "playwright": "^1.50.0",
+    "sharp": "^0.33.5"
   },
   "engines": {
     "node": ">=18.0.0"
