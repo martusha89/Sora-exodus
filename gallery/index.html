@@ -17,6 +17,8 @@
   --text-dim: #a1a1aa;
   --accent: #f97316;
   --accent-hover: #fb923c;
+  --danger: #ef4444;
+  --danger-hover: #dc2626;
   --font: Georgia, 'Times New Roman', serif;
   --mono: 'Consolas', monospace;
 }
@@ -140,6 +142,39 @@ body { min-height: 100vh; }
 }
 .clear-filters:hover { border-color: var(--accent); color: var(--text); }
 
+/* Trash section in sidebar */
+.trash-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.trash-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-dim);
+  font-family: var(--font);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.trash-btn:hover { border-color: var(--danger); color: var(--text); }
+.trash-btn .trash-count {
+  background: var(--danger);
+  color: #fff;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-family: var(--mono);
+}
+.trash-btn .trash-count.empty-count { background: var(--border); }
+
 /* Main content */
 .main {
   flex: 1;
@@ -157,6 +192,55 @@ body { min-height: 100vh; }
 }
 
 .results-bar .total { font-family: var(--mono); color: var(--accent); }
+
+/* Select mode bar */
+.select-bar {
+  display: none;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  margin-bottom: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+}
+.select-bar.active { display: flex; }
+
+.select-bar .select-count {
+  font-size: 0.85rem;
+  color: var(--accent);
+  font-family: var(--mono);
+}
+
+.select-bar button {
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-family: var(--font);
+  font-size: 0.8rem;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  transition: all 0.15s;
+}
+
+.select-bar .btn-delete {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+.select-bar .btn-delete:hover { background: var(--danger-hover); }
+
+.select-bar .btn-cancel {
+  background: transparent;
+  color: var(--text-dim);
+}
+.select-bar .btn-cancel:hover { color: var(--text); border-color: var(--text-dim); }
+
+.select-bar .btn-select-all {
+  background: transparent;
+  color: var(--text-dim);
+  margin-left: auto;
+}
+.select-bar .btn-select-all:hover { color: var(--text); border-color: var(--text-dim); }
 
 /* Grid */
 .grid {
@@ -179,6 +263,27 @@ body { min-height: 100vh; }
   box-shadow: 0 8px 24px rgba(0,0,0,0.4);
   border-color: var(--border);
 }
+.card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+
+.card .select-check {
+  display: none;
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 24px;
+  height: 24px;
+  background: rgba(0,0,0,0.7);
+  border: 2px solid var(--text-dim);
+  border-radius: 4px;
+  z-index: 5;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 0.8rem;
+  backdrop-filter: blur(4px);
+}
+.select-mode .card .select-check { display: flex; }
+.card.selected .select-check { background: var(--accent); border-color: var(--accent); }
 
 .card .thumb-wrap {
   position: relative;
@@ -221,6 +326,7 @@ body { min-height: 100vh; }
   background: rgba(239, 68, 68, 0.85);
   color: #fff;
 }
+.select-mode .card .badge-fav { left: 34px; }
 
 .card .card-info {
   padding: 8px 10px;
@@ -423,17 +529,58 @@ body { min-height: 100vh; }
 .variant-link:hover { border-color: var(--accent); background: var(--bg-hover); }
 
 .panel-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.panel-actions a {
+.panel-actions a,
+.panel-actions button {
   padding: 8px 14px;
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 4px;
   color: var(--text);
+  font-family: var(--font);
   font-size: 0.8rem;
   text-decoration: none;
+  cursor: pointer;
   transition: all 0.15s;
 }
 .panel-actions a:hover { border-color: var(--accent); color: var(--accent); }
+.panel-actions .btn-trash { border-color: var(--danger); color: var(--danger); }
+.panel-actions .btn-trash:hover { background: var(--danger); color: #fff; }
+
+/* Confirm dialog */
+.confirm-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0,0,0,0.8);
+  align-items: center;
+  justify-content: center;
+}
+.confirm-overlay.open { display: flex; }
+.confirm-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 24px;
+  max-width: 400px;
+  width: 90%;
+}
+.confirm-box h3 { margin-bottom: 8px; font-size: 1rem; }
+.confirm-box p { font-size: 0.85rem; color: var(--text-dim); margin-bottom: 16px; line-height: 1.5; }
+.confirm-box .confirm-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.confirm-box button {
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-family: var(--font);
+  font-size: 0.85rem;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  transition: all 0.15s;
+}
+.confirm-box .btn-confirm-delete { background: var(--danger); border-color: var(--danger); color: #fff; }
+.confirm-box .btn-confirm-delete:hover { background: var(--danger-hover); }
+.confirm-box .btn-confirm-cancel { background: transparent; color: var(--text-dim); }
+.confirm-box .btn-confirm-cancel:hover { color: var(--text); }
 
 /* Empty state */
 .empty {
@@ -442,6 +589,49 @@ body { min-height: 100vh; }
   color: var(--text-dim);
 }
 .empty h2 { font-size: 1.2rem; margin-bottom: 8px; color: var(--text); }
+
+/* Trash view */
+.trash-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.trash-header h2 { font-size: 1rem; color: var(--text); }
+.trash-header button {
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-family: var(--font);
+  font-size: 0.8rem;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  transition: all 0.15s;
+}
+.trash-header .btn-back:hover { border-color: var(--accent); color: var(--text); }
+.trash-header .btn-empty-trash { border-color: var(--danger); color: var(--danger); }
+.trash-header .btn-empty-trash:hover { background: var(--danger); color: #fff; }
+
+.trash-card-actions {
+  display: flex;
+  gap: 4px;
+  padding: 4px 10px 8px;
+}
+.trash-card-actions button {
+  flex: 1;
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-family: var(--font);
+  font-size: 0.7rem;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  transition: all 0.15s;
+}
+.trash-card-actions .btn-restore { background: transparent; color: var(--accent); border-color: var(--accent); }
+.trash-card-actions .btn-restore:hover { background: var(--accent); color: #000; }
+.trash-card-actions .btn-perma-delete { background: transparent; color: var(--danger); border-color: var(--danger); }
+.trash-card-actions .btn-perma-delete:hover { background: var(--danger); color: #fff; }
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 8px; }
@@ -502,12 +692,26 @@ body { min-height: 100vh; }
 
     <button class="clear-filters" id="clearFilters">Clear All Filters</button>
 
+    <div class="trash-section">
+      <button class="trash-btn" id="trashBtn">
+        <span>Trash</span>
+        <span class="trash-count empty-count" id="trashCount">0</span>
+      </button>
+    </div>
+
     <div class="stat-bar" id="statsBar">Loading stats...</div>
   </aside>
 
-  <main class="main">
+  <main class="main" id="mainContent">
+    <div class="select-bar" id="selectBar">
+      <span class="select-count" id="selectCount">0 selected</span>
+      <button class="btn-delete" id="selectDelete">Delete Selected</button>
+      <button class="btn-select-all" id="selectAll">Select All on Page</button>
+      <button class="btn-cancel" id="selectCancel">Cancel</button>
+    </div>
     <div class="results-bar">
       <span id="resultsInfo">Loading...</span>
+      <button class="chip" id="selectModeBtn" style="font-size:0.75rem">Select</button>
     </div>
     <div class="grid" id="grid"></div>
     <div class="loader" id="loader" style="display:none">Loading more...</div>
@@ -529,6 +733,18 @@ body { min-height: 100vh; }
   </div>
 </div>
 
+<!-- Confirm dialog -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-box">
+    <h3 id="confirmTitle">Move to Trash?</h3>
+    <p id="confirmMsg">This will move the file to trash. You can restore it later.</p>
+    <div class="confirm-actions">
+      <button class="btn-confirm-cancel" id="confirmCancel">Cancel</button>
+      <button class="btn-confirm-delete" id="confirmOk">Move to Trash</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const $ = (s, p = document) => p.querySelector(s);
 const $$ = (s, p = document) => [...p.querySelectorAll(s)];
@@ -543,16 +759,42 @@ const state = {
   hasMore: true,
   generations: [],
   lightboxIndex: -1,
+  selectMode: false,
+  selected: new Set(),
+  viewingTrash: false,
+  trashItems: [],
 };
+
+// Confirm dialog helper
+function showConfirm(title, msg, btnText) {
+  return new Promise(resolve => {
+    $('#confirmTitle').textContent = title;
+    $('#confirmMsg').textContent = msg;
+    $('#confirmOk').textContent = btnText;
+    $('#confirmOverlay').classList.add('open');
+    const ok = () => { cleanup(); resolve(true); };
+    const cancel = () => { cleanup(); resolve(false); };
+    const cleanup = () => {
+      $('#confirmOverlay').classList.remove('open');
+      $('#confirmOk').removeEventListener('click', ok);
+      $('#confirmCancel').removeEventListener('click', cancel);
+    };
+    $('#confirmOk').addEventListener('click', ok);
+    $('#confirmCancel').addEventListener('click', cancel);
+  });
+}
 
 // Init
 document.addEventListener('DOMContentLoaded', async () => {
   await loadStats();
+  await loadTrashCount();
   await loadPage();
   setupFilters();
   setupSearch();
   setupInfiniteScroll();
   setupLightbox();
+  setupSelectMode();
+  setupTrash();
 });
 
 // Stats
@@ -568,13 +810,22 @@ async function loadStats() {
       ${s.dateRange.earliest ? s.dateRange.earliest.slice(0, 10) : '?'} &mdash;
       ${s.dateRange.latest ? s.dateRange.latest.slice(0, 10) : '?'}
     `;
-
-    // Update chip counts
     const chips = $$('.chip[data-filter="type"]');
     chips.forEach(c => {
       if (c.dataset.value === 'image_gen') c.innerHTML = `Images <span class="count">${s.images.toLocaleString()}</span>`;
       if (c.dataset.value === 'video_gen') c.innerHTML = `Videos <span class="count">${s.videos}</span>`;
     });
+  } catch {}
+}
+
+async function loadTrashCount() {
+  try {
+    const res = await fetch('/api/trash');
+    const data = await res.json();
+    state.trashItems = data.items || [];
+    const el = $('#trashCount');
+    el.textContent = data.count;
+    el.classList.toggle('empty-count', data.count === 0);
   } catch {}
 }
 
@@ -631,6 +882,7 @@ function renderCards(items) {
     const card = document.createElement('div');
     card.className = 'card';
     card.dataset.index = state.generations.length + i;
+    card.dataset.genId = gen.gen_id;
 
     const isVideo = gen.type === 'video_gen';
     let media;
@@ -653,6 +905,7 @@ function renderCards(items) {
     if (gen.variant_count > 1) badges += `<span class="variants-badge">${gen.variant_count} variants</span>`;
 
     card.innerHTML = `
+      <div class="select-check">&#10003;</div>
       <div class="thumb-wrap">
         ${media}
         ${badges}
@@ -663,7 +916,6 @@ function renderCards(items) {
       </div>
     `;
 
-    // Video hover preview
     if (isVideo) {
       card.addEventListener('mouseenter', () => {
         const v = card.querySelector('video');
@@ -675,25 +927,327 @@ function renderCards(items) {
       });
     }
 
-    card.addEventListener('click', () => openLightbox(parseInt(card.dataset.index)));
+    card.addEventListener('click', (e) => {
+      if (state.selectMode) {
+        e.stopPropagation();
+        toggleSelect(card, gen.gen_id);
+      } else {
+        openLightbox(parseInt(card.dataset.index));
+      }
+    });
+
     grid.appendChild(card);
   });
+}
+
+// Select mode
+function setupSelectMode() {
+  $('#selectModeBtn').addEventListener('click', () => {
+    state.selectMode = !state.selectMode;
+    document.body.classList.toggle('select-mode', state.selectMode);
+    $('#selectBar').classList.toggle('active', state.selectMode);
+    if (!state.selectMode) {
+      state.selected.clear();
+      $$('.card.selected').forEach(c => c.classList.remove('selected'));
+      updateSelectCount();
+    }
+  });
+
+  $('#selectCancel').addEventListener('click', () => {
+    state.selectMode = false;
+    document.body.classList.remove('select-mode');
+    $('#selectBar').classList.remove('active');
+    state.selected.clear();
+    $$('.card.selected').forEach(c => c.classList.remove('selected'));
+  });
+
+  $('#selectAll').addEventListener('click', () => {
+    $$('.card').forEach(card => {
+      const id = card.dataset.genId;
+      if (id && !state.selected.has(id)) {
+        state.selected.add(id);
+        card.classList.add('selected');
+      }
+    });
+    updateSelectCount();
+  });
+
+  $('#selectDelete').addEventListener('click', async () => {
+    if (state.selected.size === 0) return;
+    const confirmed = await showConfirm(
+      'Move to Trash?',
+      `This will move ${state.selected.size} generation${state.selected.size > 1 ? 's' : ''} to trash. You can restore them later.`,
+      'Move to Trash'
+    );
+    if (!confirmed) return;
+    await deleteSelected();
+  });
+}
+
+function toggleSelect(card, genId) {
+  if (state.selected.has(genId)) {
+    state.selected.delete(genId);
+    card.classList.remove('selected');
+  } else {
+    state.selected.add(genId);
+    card.classList.add('selected');
+  }
+  updateSelectCount();
+}
+
+function updateSelectCount() {
+  $('#selectCount').textContent = `${state.selected.size} selected`;
+}
+
+async function deleteSelected() {
+  const ids = [...state.selected];
+  let deleted = 0;
+  for (const id of ids) {
+    try {
+      const res = await fetch(`/api/generations/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        deleted++;
+        const card = $(`.card[data-gen-id="${id}"]`);
+        if (card) card.remove();
+        state.generations = state.generations.filter(g => g.gen_id !== id);
+      }
+    } catch {}
+  }
+  state.selected.clear();
+  updateSelectCount();
+  state.selectMode = false;
+  document.body.classList.remove('select-mode');
+  $('#selectBar').classList.remove('active');
+  $$('.card.selected').forEach(c => c.classList.remove('selected'));
+  // Re-index remaining cards
+  $$('.card').forEach((c, i) => c.dataset.index = i);
+  loadStats();
+  loadTrashCount();
+}
+
+// Single delete from lightbox
+async function deleteFromLightbox(genId) {
+  const confirmed = await showConfirm(
+    'Move to Trash?',
+    'This will move this generation to trash. You can restore it later.',
+    'Move to Trash'
+  );
+  if (!confirmed) return;
+
+  try {
+    const res = await fetch(`/api/generations/${genId}`, { method: 'DELETE' });
+    if (res.ok) {
+      // Remove from state and move to next
+      const idx = state.lightboxIndex;
+      state.generations.splice(idx, 1);
+      const card = $(`.card[data-gen-id="${genId}"]`);
+      if (card) card.remove();
+      // Re-index
+      $$('.card').forEach((c, i) => c.dataset.index = i);
+
+      if (state.generations.length === 0) {
+        closeLightbox();
+        resetAndReload();
+      } else if (idx >= state.generations.length) {
+        state.lightboxIndex = state.generations.length - 1;
+        renderLightboxContent(state.generations[state.lightboxIndex]);
+      } else {
+        renderLightboxContent(state.generations[idx]);
+      }
+      loadStats();
+      loadTrashCount();
+    }
+  } catch (err) {
+    console.error('Delete error:', err);
+  }
+}
+
+// Trash view
+function setupTrash() {
+  $('#trashBtn').addEventListener('click', () => {
+    if (state.viewingTrash) return;
+    showTrashView();
+  });
+}
+
+async function showTrashView() {
+  state.viewingTrash = true;
+  await loadTrashCount();
+
+  const main = $('#mainContent');
+  const grid = $('#grid');
+  const resultsBar = $('.results-bar');
+  const selectBar = $('#selectBar');
+  const loader = $('#loader');
+  const empty = $('#empty');
+
+  selectBar.classList.remove('active');
+  state.selectMode = false;
+  document.body.classList.remove('select-mode');
+  loader.style.display = 'none';
+
+  grid.innerHTML = '';
+  resultsBar.style.display = 'none';
+
+  // Add trash header
+  let header = $('#trashHeader');
+  if (!header) {
+    header = document.createElement('div');
+    header.id = 'trashHeader';
+    header.className = 'trash-header';
+    main.insertBefore(header, grid);
+  }
+
+  header.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px">
+      <button class="btn-back" onclick="exitTrashView()">&#8592; Back</button>
+      <h2>Trash <span style="color:var(--text-dim);font-size:0.85rem">(${state.trashItems.length})</span></h2>
+    </div>
+    ${state.trashItems.length > 0 ? '<button class="btn-empty-trash" onclick="emptyTrash()">Empty Trash</button>' : ''}
+  `;
+  header.style.display = 'flex';
+
+  if (state.trashItems.length === 0) {
+    empty.style.display = 'block';
+    empty.querySelector('h2').textContent = 'Trash is empty';
+    empty.querySelector('p').textContent = 'Deleted items will appear here.';
+    return;
+  }
+
+  empty.style.display = 'none';
+
+  state.trashItems.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.style.cursor = 'default';
+    card.dataset.genId = item.gen_id;
+
+    const isVideo = item.type === 'video_gen';
+    let media;
+    if (isVideo && item.file_primary) {
+      media = `<video src="/trash-media/${item.gen_id}/${item.file_primary}" preload="metadata" muted></video>`;
+    } else if (item.file_primary) {
+      media = `<img src="/trash-media/${item.gen_id}/${item.file_primary}" loading="lazy" alt="">`;
+    } else {
+      media = '<div style="width:100%;height:100%;background:var(--bg-hover)"></div>';
+    }
+
+    const promptSnip = item.prompt ? item.prompt.slice(0, 80) : '(no prompt)';
+
+    card.innerHTML = `
+      <div class="thumb-wrap">${media}</div>
+      <div class="card-info">
+        <div class="card-prompt">${escapeHtml(promptSnip)}</div>
+      </div>
+      <div class="trash-card-actions">
+        <button class="btn-restore" onclick="restoreItem('${item.gen_id}')">Restore</button>
+        <button class="btn-perma-delete" onclick="permaDelete('${item.gen_id}')">Delete</button>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function exitTrashView() {
+  state.viewingTrash = false;
+  const header = $('#trashHeader');
+  if (header) header.style.display = 'none';
+  $('.results-bar').style.display = 'flex';
+  $('#empty').style.display = 'none';
+  $('#empty').querySelector('h2').textContent = 'No results';
+  $('#empty').querySelector('p').textContent = 'Try adjusting your filters or search query.';
+  resetAndReload();
+}
+
+async function restoreItem(genId) {
+  try {
+    const res = await fetch(`/api/generations/${genId}/restore`, { method: 'POST' });
+    if (res.ok) {
+      state.trashItems = state.trashItems.filter(i => i.gen_id !== genId);
+      const card = $(`.card[data-gen-id="${genId}"]`);
+      if (card) card.remove();
+      loadTrashCount();
+      loadStats();
+      // Update header count
+      const header = $('#trashHeader');
+      if (header) {
+        const countSpan = header.querySelector('h2 span');
+        if (countSpan) countSpan.textContent = `(${state.trashItems.length})`;
+      }
+      if (state.trashItems.length === 0) {
+        $('#empty').style.display = 'block';
+        $('#empty').querySelector('h2').textContent = 'Trash is empty';
+        $('#empty').querySelector('p').textContent = 'Deleted items will appear here.';
+      }
+    }
+  } catch (err) {
+    console.error('Restore error:', err);
+  }
+}
+
+async function permaDelete(genId) {
+  const confirmed = await showConfirm(
+    'Permanently Delete?',
+    'This cannot be undone. The files will be gone forever.',
+    'Delete Forever'
+  );
+  if (!confirmed) return;
+
+  try {
+    const res = await fetch(`/api/trash/${genId}`, { method: 'DELETE' });
+    if (res.ok) {
+      state.trashItems = state.trashItems.filter(i => i.gen_id !== genId);
+      const card = $(`.card[data-gen-id="${genId}"]`);
+      if (card) card.remove();
+      loadTrashCount();
+      const header = $('#trashHeader');
+      if (header) {
+        const countSpan = header.querySelector('h2 span');
+        if (countSpan) countSpan.textContent = `(${state.trashItems.length})`;
+      }
+      if (state.trashItems.length === 0) {
+        $('#empty').style.display = 'block';
+        $('#empty').querySelector('h2').textContent = 'Trash is empty';
+      }
+    }
+  } catch (err) {
+    console.error('Permanent delete error:', err);
+  }
+}
+
+async function emptyTrash() {
+  const confirmed = await showConfirm(
+    'Empty Trash?',
+    `This will permanently delete ${state.trashItems.length} item${state.trashItems.length > 1 ? 's' : ''}. This cannot be undone.`,
+    'Empty Trash'
+  );
+  if (!confirmed) return;
+
+  try {
+    const res = await fetch('/api/trash', { method: 'DELETE' });
+    if (res.ok) {
+      state.trashItems = [];
+      loadTrashCount();
+      showTrashView();
+    }
+  } catch (err) {
+    console.error('Empty trash error:', err);
+  }
 }
 
 // Filters
 function setupFilters() {
   $$('.chip[data-filter]').forEach(chip => {
     chip.addEventListener('click', () => {
+      if (state.viewingTrash) exitTrashView();
       const filter = chip.dataset.filter;
       const value = chip.dataset.value;
 
-      // Special toggle for favorites
       if (filter === 'favorites') {
         const isActive = chip.classList.contains('active');
         state.filters.favorites = isActive ? '' : value;
         chip.classList.toggle('active');
       } else {
-        // Deactivate siblings, activate this one
         $$(`[data-filter="${filter}"]`).forEach(c => c.classList.remove('active'));
         chip.classList.add('active');
         state.filters[filter] = value;
@@ -703,10 +1257,8 @@ function setupFilters() {
     });
   });
 
-  // Activate "All" chips by default
   $$('.chip[data-value=""]').forEach(c => c.classList.add('active'));
 
-  // Date filters
   $('#dateFrom').addEventListener('change', (e) => {
     state.filters.from = e.target.value;
     resetAndReload();
@@ -716,8 +1268,8 @@ function setupFilters() {
     resetAndReload();
   });
 
-  // Clear all
   $('#clearFilters').addEventListener('click', () => {
+    if (state.viewingTrash) exitTrashView();
     state.filters = { type: '', quality: '', dims: '', favorites: '', from: '', to: '' };
     state.searchQuery = '';
     $('#searchBox').value = '';
@@ -733,6 +1285,7 @@ function setupFilters() {
 function setupSearch() {
   let timeout;
   $('#searchBox').addEventListener('input', (e) => {
+    if (state.viewingTrash) exitTrashView();
     clearTimeout(timeout);
     timeout = setTimeout(() => {
       state.searchQuery = e.target.value.trim();
@@ -752,12 +1305,11 @@ function resetAndReload() {
 // Infinite scroll
 function setupInfiniteScroll() {
   const observer = new IntersectionObserver(entries => {
-    if (entries[0].isIntersecting && !state.loading && state.hasMore) {
+    if (entries[0].isIntersecting && !state.loading && state.hasMore && !state.viewingTrash) {
       loadPage();
     }
   }, { rootMargin: '400px' });
 
-  // Create sentinel
   const sentinel = document.createElement('div');
   sentinel.id = 'sentinel';
   sentinel.style.height = '1px';
@@ -778,14 +1330,20 @@ function setupLightbox() {
   });
 
   document.addEventListener('keydown', (e) => {
+    if ($('#confirmOverlay').classList.contains('open')) return;
     if (!$('#lightbox').classList.contains('open')) return;
     if (e.key === 'Escape') closeLightbox();
     if (e.key === 'ArrowLeft') navigateLightbox(-1);
     if (e.key === 'ArrowRight') navigateLightbox(1);
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      const gen = state.generations[state.lightboxIndex];
+      if (gen) deleteFromLightbox(gen.gen_id);
+    }
   });
 }
 
 function openLightbox(index) {
+  if (state.selectMode) return;
   state.lightboxIndex = index;
   const gen = state.generations[index];
   if (!gen) return;
@@ -800,7 +1358,6 @@ function openLightbox(index) {
 function closeLightbox() {
   $('#lightbox').classList.remove('open');
   document.body.style.overflow = '';
-  // Stop any playing video
   const vid = $('video', $('#lbMedia'));
   if (vid) vid.pause();
 }
@@ -810,8 +1367,6 @@ function navigateLightbox(dir) {
   if (newIndex < 0 || newIndex >= state.generations.length) return;
   state.lightboxIndex = newIndex;
   renderLightboxContent(state.generations[newIndex]);
-
-  // Load more if near end
   if (newIndex >= state.generations.length - 5 && state.hasMore) loadPage();
 }
 
@@ -819,7 +1374,6 @@ function renderLightboxContent(gen) {
   const isVideo = gen.type === 'video_gen';
   const mediaUrl = `/media/${gen.gen_id}/${gen.file_primary}`;
 
-  // Media
   const mediaEl = $('#lbMedia');
   if (isVideo) {
     mediaEl.innerHTML = `<video src="${mediaUrl}" controls autoplay loop style="max-width:100%;max-height:100%;border-radius:4px"></video>`;
@@ -827,7 +1381,6 @@ function renderLightboxContent(gen) {
     mediaEl.innerHTML = `<img src="${mediaUrl}" alt="" style="max-width:100%;max-height:100%;border-radius:4px">`;
   }
 
-  // Panel
   const date = gen.created_at ? new Date(gen.created_at).toLocaleDateString('en-GB', {
     day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
   }) : 'Unknown';
@@ -881,9 +1434,10 @@ function renderLightboxContent(gen) {
     </div>
     ${variantHtml}
     <div class="panel-section">
-      <h3>Files</h3>
+      <h3>Actions</h3>
       <div class="panel-actions">
-        <a href="${mediaUrl}" target="_blank" download>Download Original</a>
+        <a href="${mediaUrl}" target="_blank" download>Download</a>
+        <button class="btn-trash" onclick="deleteFromLightbox('${gen.gen_id}')">Move to Trash</button>
       </div>
     </div>
     <div class="panel-section" style="font-size:0.7rem;color:var(--text-dim);font-family:var(--mono);word-break:break-all">
@@ -895,6 +1449,7 @@ function renderLightboxContent(gen) {
 // Load variants into grid
 async function loadVariants(taskId) {
   closeLightbox();
+  if (state.viewingTrash) exitTrashView();
   state.searchQuery = '';
   state.filters = { type: '', quality: '', dims: '', favorites: '', from: '', to: '' };
   $('#searchBox').value = '';

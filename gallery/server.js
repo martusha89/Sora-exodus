@@ -1,6 +1,7 @@
 import { DatabaseSync } from 'node:sqlite';
 import { createServer } from 'node:http';
-import { readFile, stat } from 'node:fs/promises';
+import { readFile, stat, mkdir, rename, rm, readdir } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 
 const MIME_TYPES = {
@@ -20,6 +21,7 @@ const PAGE_SIZE = 60;
 export function startServer(port, dbPath, thumbDir, generationsDir, htmlPath) {
   const db = new DatabaseSync(dbPath);
   db.exec('PRAGMA journal_mode = WAL');
+  const trashDir = path.join(path.dirname(generationsDir), 'trash');
 
   const server = createServer(async (req, res) => {
     try {
@@ -35,6 +37,14 @@ export function startServer(port, dbPath, thumbDir, generationsDir, htmlPath) {
       if (pathname === '/api/generations') return apiGenerations(db, url, res);
       if (pathname === '/api/search') return apiSearch(db, url, res);
       if (pathname === '/api/stats') return apiStats(db, res);
+      if (pathname.startsWith('/api/generations/') && pathname.endsWith('/restore') && req.method === 'POST') {
+        const id = pathname.split('/')[3];
+        return apiRestore(db, id, generationsDir, trashDir, thumbDir, res);
+      }
+      if (pathname.startsWith('/api/generations/') && req.method === 'DELETE') {
+        const id = pathname.split('/')[3];
+        return apiDelete(db, id, generationsDir, trashDir, thumbDir, res);
+      }
       if (pathname.startsWith('/api/generations/')) {
         const id = pathname.split('/')[3];
         return apiGeneration(db, id, res);
@@ -42,6 +52,16 @@ export function startServer(port, dbPath, thumbDir, generationsDir, htmlPath) {
       if (pathname.startsWith('/api/tasks/')) {
         const id = pathname.split('/')[3];
         return apiTask(db, id, res);
+      }
+      if (pathname === '/api/trash' && req.method === 'DELETE') {
+        return apiEmptyTrash(trashDir, res);
+      }
+      if (pathname === '/api/trash') {
+        return apiTrash(trashDir, res);
+      }
+      if (pathname.startsWith('/api/trash/') && req.method === 'DELETE') {
+        const id = pathname.split('/')[3];
+        return apiTrashDelete(id, trashDir, res);
       }
 
       // Thumbnail route
@@ -60,6 +80,18 @@ export function startServer(port, dbPath, thumbDir, generationsDir, htmlPath) {
           return send(res, 400, { error: 'Bad request' });
         }
         const filePath = path.join(generationsDir, genId, filename);
+        return serveMedia(req, res, filePath, filename);
+      }
+
+      // Trash media route
+      if (pathname.startsWith('/trash-media/')) {
+        const parts = pathname.split('/');
+        const genId = parts[2];
+        const filename = parts[3];
+        if (!genId || !filename || filename.includes('..')) {
+          return send(res, 400, { error: 'Bad request' });
+        }
+        const filePath = path.join(trashDir, genId, filename);
         return serveMedia(req, res, filePath, filename);
       }
 
@@ -227,6 +259,179 @@ function apiStats(db, res) {
     dimensions: { portrait, landscape, square },
     dateRange: { earliest: dateRange.earliest, latest: dateRange.latest },
   });
+}
+
+async function apiDelete(db, genId, generationsDir, trashDir, thumbDir, res) {
+  const row = db.prepare('SELECT * FROM generations WHERE gen_id = ?').get(genId);
+  if (!row) return send(res, 404, { error: 'Not found' });
+
+  const srcDir = path.join(generationsDir, genId);
+  const destDir = path.join(trashDir, genId);
+
+  try {
+    await mkdir(trashDir, { recursive: true });
+    if (existsSync(srcDir)) {
+      await rename(srcDir, destDir);
+    }
+    // Remove thumbnail
+    const thumbPath = path.join(thumbDir, `${genId}.webp`);
+    if (existsSync(thumbPath)) {
+      await rm(thumbPath);
+    }
+    // Remove from DB
+    db.prepare('DELETE FROM generations WHERE gen_id = ?').run(genId);
+    db.prepare('DELETE FROM generations_fts WHERE gen_id = ?').run(genId);
+    // Refresh task_stats
+    if (row.task_id) refreshTaskStats(db, row.task_id);
+
+    send(res, 200, { deleted: genId });
+  } catch (err) {
+    console.error('Delete error:', err);
+    send(res, 500, { error: 'Failed to delete' });
+  }
+}
+
+async function apiRestore(db, genId, generationsDir, trashDir, thumbDir, res) {
+  const trashGenDir = path.join(trashDir, genId);
+  if (!existsSync(trashGenDir)) {
+    return send(res, 404, { error: 'Not found in trash' });
+  }
+
+  const destDir = path.join(generationsDir, genId);
+  const metaPath = path.join(trashGenDir, 'metadata.json');
+
+  try {
+    // Move back
+    await rename(trashGenDir, destDir);
+
+    // Reimport metadata
+    if (existsSync(path.join(destDir, 'metadata.json'))) {
+      const raw = await readFile(path.join(destDir, 'metadata.json'), 'utf8');
+      const meta = JSON.parse(raw);
+      const filePrimary = pickRestoredFile(meta, destDir);
+
+      db.prepare(`
+        INSERT OR IGNORE INTO generations
+        (gen_id, task_id, prompt, created_at, type, width, height, quality, seed, is_favorite, has_thumb, file_primary)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
+      `).run(
+        meta.gen_id, meta.task_id || null, meta.prompt || '',
+        meta.created_at || null, meta.type || 'image_gen',
+        meta.width || 0, meta.height || 0, meta.quality || null,
+        meta.seed || null, meta.is_favorite ? 1 : 0, filePrimary
+      );
+
+      // Restore FTS
+      if (meta.prompt) {
+        db.prepare('INSERT OR IGNORE INTO generations_fts(gen_id, prompt) VALUES (?, ?)').run(meta.gen_id, meta.prompt);
+      }
+
+      // Refresh task_stats
+      if (meta.task_id) refreshTaskStats(db, meta.task_id);
+
+      // Regenerate thumbnail asynchronously
+      if (meta.type === 'image_gen' && filePrimary) {
+        regenThumb(destDir, filePrimary, genId, thumbDir, db).catch(() => {});
+      }
+    }
+
+    send(res, 200, { restored: genId });
+  } catch (err) {
+    console.error('Restore error:', err);
+    send(res, 500, { error: 'Failed to restore' });
+  }
+}
+
+async function apiTrash(trashDir, res) {
+  try {
+    if (!existsSync(trashDir)) {
+      return send(res, 200, { items: [], count: 0 });
+    }
+    const entries = await readdir(trashDir);
+    const genDirs = entries.filter(e => e.startsWith('gen_'));
+    const items = [];
+
+    for (const dir of genDirs) {
+      const metaPath = path.join(trashDir, dir, 'metadata.json');
+      try {
+        const raw = await readFile(metaPath, 'utf8');
+        const meta = JSON.parse(raw);
+        items.push({
+          gen_id: meta.gen_id,
+          prompt: meta.prompt || '',
+          type: meta.type || 'image_gen',
+          width: meta.width || 0,
+          height: meta.height || 0,
+          file_primary: pickRestoredFile(meta, path.join(trashDir, dir)),
+        });
+      } catch {
+        items.push({ gen_id: dir, prompt: '', type: 'unknown', width: 0, height: 0, file_primary: null });
+      }
+    }
+
+    send(res, 200, { items, count: items.length });
+  } catch (err) {
+    send(res, 200, { items: [], count: 0 });
+  }
+}
+
+async function apiEmptyTrash(trashDir, res) {
+  try {
+    if (existsSync(trashDir)) {
+      await rm(trashDir, { recursive: true, force: true });
+    }
+    send(res, 200, { emptied: true });
+  } catch (err) {
+    console.error('Empty trash error:', err);
+    send(res, 500, { error: 'Failed to empty trash' });
+  }
+}
+
+async function apiTrashDelete(genId, trashDir, res) {
+  const genDir = path.join(trashDir, genId);
+  try {
+    if (existsSync(genDir)) {
+      await rm(genDir, { recursive: true, force: true });
+    }
+    send(res, 200, { deleted: genId });
+  } catch (err) {
+    send(res, 500, { error: 'Failed to permanently delete' });
+  }
+}
+
+function pickRestoredFile(meta, genDir) {
+  const files = meta.files || [];
+  if (meta.type === 'video_gen') {
+    for (const f of ['video.mp4', 'original.mp4']) {
+      if (files.includes(f) && existsSync(path.join(genDir, f))) return f;
+    }
+    return files.find(f => existsSync(path.join(genDir, f))) || files[0] || null;
+  }
+  for (const f of ['original.png', 'image.png', 'image.webp']) {
+    if (files.includes(f) && existsSync(path.join(genDir, f))) return f;
+  }
+  return files.find(f => existsSync(path.join(genDir, f))) || files[0] || null;
+}
+
+function refreshTaskStats(db, taskId) {
+  db.prepare('DELETE FROM task_stats WHERE task_id = ?').run(taskId);
+  db.prepare(`
+    INSERT OR IGNORE INTO task_stats (task_id, variant_count)
+    SELECT task_id, COUNT(*) FROM generations
+    WHERE task_id = ?
+    GROUP BY task_id
+    HAVING COUNT(*) > 1
+  `).run(taskId);
+}
+
+async function regenThumb(genDir, filePrimary, genId, thumbDir, db) {
+  try {
+    const sharp = (await import('sharp')).default;
+    const srcPath = path.join(genDir, filePrimary);
+    const thumbPath = path.join(thumbDir, `${genId}.webp`);
+    await sharp(srcPath).resize(300, null, { withoutEnlargement: true }).webp({ quality: 75 }).toFile(thumbPath);
+    db.prepare('UPDATE generations SET has_thumb = 1 WHERE gen_id = ?').run(genId);
+  } catch {}
 }
 
 function send(res, status, data) {
