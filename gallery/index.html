@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sora Gallery</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #18181b;
+  --bg-card: #27272a;
+  --bg-hover: #3f3f46;
+  --bg-input: #1e1e22;
+  --border: #3f3f46;
+  --text: #e4e4e7;
+  --text-dim: #a1a1aa;
+  --accent: #f97316;
+  --accent-hover: #fb923c;
+  --font: Georgia, 'Times New Roman', serif;
+  --mono: 'Consolas', monospace;
+}
+
+html { background: var(--bg); color: var(--text); font-family: var(--font); }
+body { min-height: 100vh; }
+
+/* Layout */
+.app { display: flex; min-height: 100vh; }
+
+/* Sidebar */
+.sidebar {
+  width: 260px;
+  flex-shrink: 0;
+  background: var(--bg-card);
+  border-right: 1px solid var(--border);
+  padding: 20px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  overflow-y: auto;
+  z-index: 10;
+}
+
+.sidebar h1 {
+  font-size: 1.3rem;
+  color: var(--accent);
+  margin-bottom: 4px;
+  letter-spacing: -0.5px;
+}
+
+.sidebar .subtitle {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  margin-bottom: 20px;
+}
+
+.search-box {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 0.9rem;
+  margin-bottom: 20px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.search-box:focus { border-color: var(--accent); }
+.search-box::placeholder { color: var(--text-dim); }
+
+.filter-group { margin-bottom: 16px; }
+.filter-group label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.filter-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.chip {
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  font-family: var(--font);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.chip:hover { border-color: var(--accent); color: var(--text); }
+.chip.active { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 600; }
+
+.chip .count { font-size: 0.7rem; opacity: 0.7; margin-left: 3px; }
+
+.date-inputs { display: flex; gap: 6px; }
+.date-inputs input {
+  flex: 1;
+  padding: 6px 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  outline: none;
+}
+.date-inputs input:focus { border-color: var(--accent); }
+
+.stat-bar {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  line-height: 1.8;
+}
+.stat-bar strong { color: var(--accent); font-family: var(--mono); }
+
+.clear-filters {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 8px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-dim);
+  font-family: var(--font);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.clear-filters:hover { border-color: var(--accent); color: var(--text); }
+
+/* Main content */
+.main {
+  flex: 1;
+  margin-left: 260px;
+  padding: 20px;
+}
+
+.results-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+.results-bar .total { font-family: var(--mono); color: var(--accent); }
+
+/* Grid */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.card {
+  position: relative;
+  background: var(--bg-card);
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+  border: 1px solid transparent;
+}
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  border-color: var(--border);
+}
+
+.card .thumb-wrap {
+  position: relative;
+  width: 100%;
+  padding-top: 100%;
+  background: var(--bg);
+}
+.card .thumb-wrap img,
+.card .thumb-wrap video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.card .badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  padding: 2px 6px;
+  background: rgba(0,0,0,0.7);
+  border-radius: 3px;
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  font-family: var(--mono);
+  backdrop-filter: blur(4px);
+}
+
+.card .badge-video {
+  background: rgba(249, 115, 22, 0.85);
+  color: #fff;
+}
+
+.card .badge-fav {
+  top: 6px;
+  left: 6px;
+  right: auto;
+  background: rgba(239, 68, 68, 0.85);
+  color: #fff;
+}
+
+.card .card-info {
+  padding: 8px 10px;
+}
+
+.card .card-prompt {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-height: 2.8em;
+}
+
+.card .card-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  margin-top: 4px;
+  font-family: var(--mono);
+  opacity: 0.7;
+}
+
+.card .variants-badge {
+  position: absolute;
+  bottom: 52px;
+  left: 6px;
+  padding: 2px 6px;
+  background: rgba(0,0,0,0.7);
+  border-radius: 3px;
+  font-size: 0.65rem;
+  color: var(--accent);
+  font-family: var(--mono);
+  backdrop-filter: blur(4px);
+}
+
+/* Loading spinner */
+.loader {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+
+.loader::after {
+  content: '';
+  display: block;
+  width: 24px;
+  height: 24px;
+  margin: 12px auto 0;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Lightbox */
+.lightbox {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0,0,0,0.92);
+  backdrop-filter: blur(8px);
+}
+.lightbox.open { display: flex; }
+
+.lightbox-inner {
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+.lightbox-media {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  position: relative;
+}
+
+.lightbox-media img,
+.lightbox-media video {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+.lightbox-panel {
+  width: 360px;
+  background: var(--bg-card);
+  border-left: 1px solid var(--border);
+  padding: 24px;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.lightbox-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  background: rgba(0,0,0,0.6);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: var(--text);
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 101;
+  transition: background 0.15s;
+}
+.lightbox-close:hover { background: var(--bg-hover); }
+
+.lightbox-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  background: rgba(0,0,0,0.6);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: var(--text);
+  font-size: 1.4rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+  z-index: 101;
+}
+.lightbox-nav:hover { background: var(--bg-hover); }
+.lightbox-nav.prev { left: 12px; }
+.lightbox-nav.next { right: 372px; }
+
+.panel-section { margin-bottom: 20px; }
+.panel-section h3 {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.panel-prompt {
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.panel-meta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.meta-item {
+  background: var(--bg);
+  padding: 8px 10px;
+  border-radius: 4px;
+}
+.meta-item .meta-label {
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.meta-item .meta-value {
+  font-size: 0.85rem;
+  color: var(--text);
+  font-family: var(--mono);
+  margin-top: 2px;
+}
+
+.variant-link {
+  display: inline-block;
+  padding: 6px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--accent);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-decoration: none;
+}
+.variant-link:hover { border-color: var(--accent); background: var(--bg-hover); }
+
+.panel-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.panel-actions a {
+  padding: 8px 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 0.8rem;
+  text-decoration: none;
+  transition: all 0.15s;
+}
+.panel-actions a:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Empty state */
+.empty {
+  text-align: center;
+  padding: 80px 20px;
+  color: var(--text-dim);
+}
+.empty h2 { font-size: 1.2rem; margin-bottom: 8px; color: var(--text); }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <h1>Sora Gallery</h1>
+    <div class="subtitle">Local Archive</div>
+
+    <input type="text" class="search-box" id="searchBox" placeholder="Search prompts...">
+
+    <div class="filter-group">
+      <label>Type</label>
+      <div class="filter-chips" id="typeFilter">
+        <span class="chip" data-filter="type" data-value="">All</span>
+        <span class="chip" data-filter="type" data-value="image_gen">Images</span>
+        <span class="chip" data-filter="type" data-value="video_gen">Videos</span>
+      </div>
+    </div>
+
+    <div class="filter-group">
+      <label>Quality</label>
+      <div class="filter-chips" id="qualityFilter">
+        <span class="chip" data-filter="quality" data-value="">All</span>
+        <span class="chip" data-filter="quality" data-value="high">High</span>
+        <span class="chip" data-filter="quality" data-value="standard">Standard</span>
+      </div>
+    </div>
+
+    <div class="filter-group">
+      <label>Dimensions</label>
+      <div class="filter-chips" id="dimsFilter">
+        <span class="chip" data-filter="dims" data-value="">All</span>
+        <span class="chip" data-filter="dims" data-value="portrait">Portrait</span>
+        <span class="chip" data-filter="dims" data-value="landscape">Landscape</span>
+        <span class="chip" data-filter="dims" data-value="square">Square</span>
+      </div>
+    </div>
+
+    <div class="filter-group">
+      <label>Date Range</label>
+      <div class="date-inputs">
+        <input type="date" id="dateFrom" title="From date">
+        <input type="date" id="dateTo" title="To date">
+      </div>
+    </div>
+
+    <div class="filter-group">
+      <div class="filter-chips">
+        <span class="chip" data-filter="favorites" data-value="1" id="favChip">Favorites</span>
+      </div>
+    </div>
+
+    <button class="clear-filters" id="clearFilters">Clear All Filters</button>
+
+    <div class="stat-bar" id="statsBar">Loading stats...</div>
+  </aside>
+
+  <main class="main">
+    <div class="results-bar">
+      <span id="resultsInfo">Loading...</span>
+    </div>
+    <div class="grid" id="grid"></div>
+    <div class="loader" id="loader" style="display:none">Loading more...</div>
+    <div class="empty" id="empty" style="display:none">
+      <h2>No results</h2>
+      <p>Try adjusting your filters or search query.</p>
+    </div>
+  </main>
+</div>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox">
+  <button class="lightbox-close" id="lbClose">&times;</button>
+  <button class="lightbox-nav prev" id="lbPrev">&lsaquo;</button>
+  <button class="lightbox-nav next" id="lbNext">&rsaquo;</button>
+  <div class="lightbox-inner">
+    <div class="lightbox-media" id="lbMedia"></div>
+    <div class="lightbox-panel" id="lbPanel"></div>
+  </div>
+</div>
+
+<script>
+const $ = (s, p = document) => p.querySelector(s);
+const $$ = (s, p = document) => [...p.querySelectorAll(s)];
+
+// State
+const state = {
+  filters: { type: '', quality: '', dims: '', favorites: '', from: '', to: '' },
+  searchQuery: '',
+  page: 1,
+  total: 0,
+  loading: false,
+  hasMore: true,
+  generations: [],
+  lightboxIndex: -1,
+};
+
+// Init
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadStats();
+  await loadPage();
+  setupFilters();
+  setupSearch();
+  setupInfiniteScroll();
+  setupLightbox();
+});
+
+// Stats
+async function loadStats() {
+  try {
+    const res = await fetch('/api/stats');
+    const s = await res.json();
+    $('#statsBar').innerHTML = `
+      <strong>${s.total.toLocaleString()}</strong> generations<br>
+      <strong>${s.images.toLocaleString()}</strong> images &middot;
+      <strong>${s.videos.toLocaleString()}</strong> videos<br>
+      <strong>${s.favorites}</strong> favorites<br>
+      ${s.dateRange.earliest ? s.dateRange.earliest.slice(0, 10) : '?'} &mdash;
+      ${s.dateRange.latest ? s.dateRange.latest.slice(0, 10) : '?'}
+    `;
+
+    // Update chip counts
+    const chips = $$('.chip[data-filter="type"]');
+    chips.forEach(c => {
+      if (c.dataset.value === 'image_gen') c.innerHTML = `Images <span class="count">${s.images.toLocaleString()}</span>`;
+      if (c.dataset.value === 'video_gen') c.innerHTML = `Videos <span class="count">${s.videos}</span>`;
+    });
+  } catch {}
+}
+
+// Load page of results
+async function loadPage() {
+  if (state.loading || !state.hasMore) return;
+  state.loading = true;
+  $('#loader').style.display = 'block';
+
+  try {
+    let url;
+    if (state.searchQuery) {
+      url = `/api/search?q=${encodeURIComponent(state.searchQuery)}&page=${state.page}`;
+    } else {
+      const params = new URLSearchParams({ page: state.page });
+      for (const [k, v] of Object.entries(state.filters)) {
+        if (v) params.set(k, v);
+      }
+      url = `/api/generations?${params}`;
+    }
+
+    const res = await fetch(url);
+    const data = await res.json();
+
+    state.total = data.total;
+    state.hasMore = state.page < data.pages;
+
+    if (data.generations.length === 0 && state.page === 1) {
+      $('#empty').style.display = 'block';
+    } else {
+      $('#empty').style.display = 'none';
+    }
+
+    renderCards(data.generations);
+    state.generations.push(...data.generations);
+
+    const showing = Math.min(state.generations.length, state.total);
+    const label = state.searchQuery ? `Search: "${state.searchQuery}"` : 'Showing';
+    $('#resultsInfo').innerHTML = `${label} <span class="total">${showing.toLocaleString()}</span> of <span class="total">${state.total.toLocaleString()}</span>`;
+
+    state.page++;
+  } catch (err) {
+    console.error('Load error:', err);
+  } finally {
+    state.loading = false;
+    $('#loader').style.display = 'none';
+  }
+}
+
+// Render cards
+function renderCards(items) {
+  const grid = $('#grid');
+  items.forEach((gen, i) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.index = state.generations.length + i;
+
+    const isVideo = gen.type === 'video_gen';
+    let media;
+    if (isVideo) {
+      media = `<video src="/media/${gen.gen_id}/${gen.file_primary}" preload="metadata" muted loop></video>`;
+    } else if (gen.has_thumb) {
+      media = `<img src="/thumb/${gen.gen_id}" loading="lazy" alt="">`;
+    } else {
+      media = `<img src="/media/${gen.gen_id}/${gen.file_primary}" loading="lazy" alt="">`;
+    }
+
+    const dims = `${gen.width}x${gen.height}`;
+    const date = gen.created_at ? gen.created_at.slice(0, 10) : '';
+    const promptSnip = gen.prompt ? gen.prompt.slice(0, 120) : '(no prompt)';
+
+    let badges = '';
+    if (isVideo) badges += '<span class="badge badge-video">VIDEO</span>';
+    else if (gen.quality) badges += `<span class="badge">${gen.quality.toUpperCase()}</span>`;
+    if (gen.is_favorite) badges += '<span class="badge badge-fav">&#9829;</span>';
+    if (gen.variant_count > 1) badges += `<span class="variants-badge">${gen.variant_count} variants</span>`;
+
+    card.innerHTML = `
+      <div class="thumb-wrap">
+        ${media}
+        ${badges}
+      </div>
+      <div class="card-info">
+        <div class="card-prompt">${escapeHtml(promptSnip)}</div>
+        <div class="card-meta"><span>${dims}</span><span>${date}</span></div>
+      </div>
+    `;
+
+    // Video hover preview
+    if (isVideo) {
+      card.addEventListener('mouseenter', () => {
+        const v = card.querySelector('video');
+        if (v) v.play().catch(() => {});
+      });
+      card.addEventListener('mouseleave', () => {
+        const v = card.querySelector('video');
+        if (v) { v.pause(); v.currentTime = 0; }
+      });
+    }
+
+    card.addEventListener('click', () => openLightbox(parseInt(card.dataset.index)));
+    grid.appendChild(card);
+  });
+}
+
+// Filters
+function setupFilters() {
+  $$('.chip[data-filter]').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const filter = chip.dataset.filter;
+      const value = chip.dataset.value;
+
+      // Special toggle for favorites
+      if (filter === 'favorites') {
+        const isActive = chip.classList.contains('active');
+        state.filters.favorites = isActive ? '' : value;
+        chip.classList.toggle('active');
+      } else {
+        // Deactivate siblings, activate this one
+        $$(`[data-filter="${filter}"]`).forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        state.filters[filter] = value;
+      }
+
+      resetAndReload();
+    });
+  });
+
+  // Activate "All" chips by default
+  $$('.chip[data-value=""]').forEach(c => c.classList.add('active'));
+
+  // Date filters
+  $('#dateFrom').addEventListener('change', (e) => {
+    state.filters.from = e.target.value;
+    resetAndReload();
+  });
+  $('#dateTo').addEventListener('change', (e) => {
+    state.filters.to = e.target.value;
+    resetAndReload();
+  });
+
+  // Clear all
+  $('#clearFilters').addEventListener('click', () => {
+    state.filters = { type: '', quality: '', dims: '', favorites: '', from: '', to: '' };
+    state.searchQuery = '';
+    $('#searchBox').value = '';
+    $('#dateFrom').value = '';
+    $('#dateTo').value = '';
+    $$('.chip').forEach(c => c.classList.remove('active'));
+    $$('.chip[data-value=""]').forEach(c => c.classList.add('active'));
+    resetAndReload();
+  });
+}
+
+// Search
+function setupSearch() {
+  let timeout;
+  $('#searchBox').addEventListener('input', (e) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => {
+      state.searchQuery = e.target.value.trim();
+      resetAndReload();
+    }, 300);
+  });
+}
+
+function resetAndReload() {
+  state.page = 1;
+  state.hasMore = true;
+  state.generations = [];
+  $('#grid').innerHTML = '';
+  loadPage();
+}
+
+// Infinite scroll
+function setupInfiniteScroll() {
+  const observer = new IntersectionObserver(entries => {
+    if (entries[0].isIntersecting && !state.loading && state.hasMore) {
+      loadPage();
+    }
+  }, { rootMargin: '400px' });
+
+  // Create sentinel
+  const sentinel = document.createElement('div');
+  sentinel.id = 'sentinel';
+  sentinel.style.height = '1px';
+  document.querySelector('.main').appendChild(sentinel);
+  observer.observe(sentinel);
+}
+
+// Lightbox
+function setupLightbox() {
+  $('#lbClose').addEventListener('click', closeLightbox);
+  $('#lbPrev').addEventListener('click', () => navigateLightbox(-1));
+  $('#lbNext').addEventListener('click', () => navigateLightbox(1));
+
+  $('#lightbox').addEventListener('click', (e) => {
+    if (e.target === $('#lightbox') || e.target.classList.contains('lightbox-media')) {
+      closeLightbox();
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (!$('#lightbox').classList.contains('open')) return;
+    if (e.key === 'Escape') closeLightbox();
+    if (e.key === 'ArrowLeft') navigateLightbox(-1);
+    if (e.key === 'ArrowRight') navigateLightbox(1);
+  });
+}
+
+function openLightbox(index) {
+  state.lightboxIndex = index;
+  const gen = state.generations[index];
+  if (!gen) return;
+
+  const lb = $('#lightbox');
+  lb.classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  renderLightboxContent(gen);
+}
+
+function closeLightbox() {
+  $('#lightbox').classList.remove('open');
+  document.body.style.overflow = '';
+  // Stop any playing video
+  const vid = $('video', $('#lbMedia'));
+  if (vid) vid.pause();
+}
+
+function navigateLightbox(dir) {
+  const newIndex = state.lightboxIndex + dir;
+  if (newIndex < 0 || newIndex >= state.generations.length) return;
+  state.lightboxIndex = newIndex;
+  renderLightboxContent(state.generations[newIndex]);
+
+  // Load more if near end
+  if (newIndex >= state.generations.length - 5 && state.hasMore) loadPage();
+}
+
+function renderLightboxContent(gen) {
+  const isVideo = gen.type === 'video_gen';
+  const mediaUrl = `/media/${gen.gen_id}/${gen.file_primary}`;
+
+  // Media
+  const mediaEl = $('#lbMedia');
+  if (isVideo) {
+    mediaEl.innerHTML = `<video src="${mediaUrl}" controls autoplay loop style="max-width:100%;max-height:100%;border-radius:4px"></video>`;
+  } else {
+    mediaEl.innerHTML = `<img src="${mediaUrl}" alt="" style="max-width:100%;max-height:100%;border-radius:4px">`;
+  }
+
+  // Panel
+  const date = gen.created_at ? new Date(gen.created_at).toLocaleDateString('en-GB', {
+    day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+  }) : 'Unknown';
+
+  let variantHtml = '';
+  if (gen.variant_count > 1) {
+    variantHtml = `
+      <div class="panel-section">
+        <h3>Variants</h3>
+        <span class="variant-link" onclick="loadVariants('${gen.task_id}')">${gen.variant_count} variants from this prompt &rarr;</span>
+      </div>
+    `;
+  }
+
+  const quality = gen.quality || 'N/A';
+  const seed = gen.seed || 'N/A';
+
+  $('#lbPanel').innerHTML = `
+    <div class="panel-section">
+      <h3>Prompt</h3>
+      <div class="panel-prompt">${escapeHtml(gen.prompt || '(no prompt)')}</div>
+    </div>
+    <div class="panel-section">
+      <h3>Details</h3>
+      <div class="panel-meta-grid">
+        <div class="meta-item">
+          <div class="meta-label">Type</div>
+          <div class="meta-value">${isVideo ? 'Video' : 'Image'}</div>
+        </div>
+        <div class="meta-item">
+          <div class="meta-label">Dimensions</div>
+          <div class="meta-value">${gen.width} &times; ${gen.height}</div>
+        </div>
+        <div class="meta-item">
+          <div class="meta-label">Quality</div>
+          <div class="meta-value">${quality}</div>
+        </div>
+        <div class="meta-item">
+          <div class="meta-label">Seed</div>
+          <div class="meta-value">${seed}</div>
+        </div>
+        <div class="meta-item">
+          <div class="meta-label">Created</div>
+          <div class="meta-value">${date}</div>
+        </div>
+        <div class="meta-item">
+          <div class="meta-label">Favorite</div>
+          <div class="meta-value">${gen.is_favorite ? 'Yes' : 'No'}</div>
+        </div>
+      </div>
+    </div>
+    ${variantHtml}
+    <div class="panel-section">
+      <h3>Files</h3>
+      <div class="panel-actions">
+        <a href="${mediaUrl}" target="_blank" download>Download Original</a>
+      </div>
+    </div>
+    <div class="panel-section" style="font-size:0.7rem;color:var(--text-dim);font-family:var(--mono);word-break:break-all">
+      ${gen.gen_id}
+    </div>
+  `;
+}
+
+// Load variants into grid
+async function loadVariants(taskId) {
+  closeLightbox();
+  state.searchQuery = '';
+  state.filters = { type: '', quality: '', dims: '', favorites: '', from: '', to: '' };
+  $('#searchBox').value = '';
+  $$('.chip').forEach(c => c.classList.remove('active'));
+  $$('.chip[data-value=""]').forEach(c => c.classList.add('active'));
+
+  try {
+    const res = await fetch(`/api/tasks/${taskId}`);
+    const data = await res.json();
+
+    state.generations = data.variants;
+    state.total = data.count;
+    state.hasMore = false;
+    state.page = 1;
+
+    $('#grid').innerHTML = '';
+    $('#resultsInfo').innerHTML = `Variants of task <span class="total">${data.count}</span>`;
+
+    renderCards(data.variants.map(v => ({ ...v, variant_count: data.count })));
+  } catch (err) {
+    console.error('Failed to load variants:', err);
+  }
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+</script>
+</body>
+</html>

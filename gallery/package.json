@@ -1,0 +1,13 @@
+{
+  "name": "sora-gallery",
+  "version": "1.0.0",
+  "description": "Local browsing gallery for 11k Sora generations",
+  "type": "module",
+  "scripts": {
+    "start": "node gallery.js",
+    "import": "node gallery.js --import-only"
+  },
+  "dependencies": {
+    "sharp": "^0.33.0"
+  }
+}
