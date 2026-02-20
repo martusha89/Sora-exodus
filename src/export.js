@@ -63,7 +63,7 @@ function getExtension(url) {
  * Uses data from the API directly, no page scraping needed.
  */
 export async function exportGenerations(page, outputDir, options = {}) {
-  const { delay = DEFAULT_DELAY } = options;
+  const { delay = DEFAULT_DELAY, favoritesOnly = false } = options;
 
   const collected = loadCollectedIds(outputDir);
   if (!collected || !collected.generations) {
@@ -77,9 +77,19 @@ export async function exportGenerations(page, outputDir, options = {}) {
   ensureDir(genDir);
 
   const progress = loadProgress(outputDir);
-  progress.totalIds = collected.generations.length;
 
-  const generations = collected.generations;
+  let generations = collected.generations;
+
+  if (favoritesOnly) {
+    generations = generations.filter(g => g.is_favorite);
+    log.info(`Favorites only: ${generations.length} of ${collected.generations.length} generations`);
+    if (generations.length === 0) {
+      log.warn('No favorited generations found. Star some in Sora first, then re-collect.');
+      return progress;
+    }
+  }
+
+  progress.totalIds = generations.length;
 
   log.info(`Exporting ${generations.length} generations (${progress.completed.size} already done)`);
 

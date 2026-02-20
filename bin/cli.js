@@ -22,6 +22,7 @@ const HELP = `
   OPTIONS
     --output, -o <dir>     Output directory (default: ./sora-export)
     --delay, -d <ms>       Delay between downloads in ms (default: 2500)
+    --favorites            Only export favorited generations
     --headless             Run browser without visible window
     --help, -h             Show this help
     --version, -v          Show version
@@ -30,6 +31,7 @@ const HELP = `
     npx sora-exodus                    # Full export with defaults
     npx sora-exodus collect            # Just collect generation data
     npx sora-exodus export             # Download (after collecting)
+    npx sora-exodus --favorites        # Export only your favorites
     npx sora-exodus status             # Check progress
     npx sora-exodus -o ./my-backup     # Custom output directory
     npx sora-exodus gallery            # Browse exports in local gallery
@@ -47,6 +49,7 @@ function parseArgs(argv) {
     output: 'sora-export',
     delay: 2500,
     headless: false,
+    favorites: false,
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -70,6 +73,9 @@ function parseArgs(argv) {
       case '--delay':
       case '-d':
         options.delay = parseInt(args[++i], 10);
+        break;
+      case '--favorites':
+        options.favorites = true;
         break;
       case '--headless':
         options.headless = true;
@@ -217,7 +223,7 @@ async function main() {
     if (options.command === 'export' || options.command === 'run') {
       log.info('=== Phase 2: Downloading Images & Videos ===');
       console.log();
-      await exportGenerations(page, options.output, { delay: options.delay });
+      await exportGenerations(page, options.output, { delay: options.delay, favoritesOnly: options.favorites });
       console.log();
     }
   } catch (err) {

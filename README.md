@@ -52,6 +52,9 @@ sora-exodus export
 # Check progress
 sora-exodus status
 
+# Export only your favorited generations
+sora-exodus --favorites
+
 # Browse your exports in a local gallery
 sora-exodus gallery
 ```
@@ -62,6 +65,7 @@ sora-exodus gallery
 |---|---|---|
 | `--output, -o` | Output directory | `./sora-export` |
 | `--delay, -d` | Delay between downloads (ms) | `2500` |
+| `--favorites` | Only export favorited generations | `false` |
 | `--headless` | Run browser without visible window | `false` |
 | `--port, -p` | Gallery server port | `3456` |
 
@@ -90,6 +94,18 @@ sora-exodus gallery -o ./backup  # Point to different export dir
 ```
 
 Requires Node.js 22+ (uses built-in SQLite).
+
+## Favorites only
+
+Don't want to export everything? Just your starred picks:
+
+```bash
+node bin/cli.js --favorites
+```
+
+This collects your full library from the API (takes under a minute), then filters down to only the generations you've favorited in Sora's web interface. Only those get downloaded.
+
+If you have 2,000 generations but only 30 favorites, you'll get 30 images in under a minute.
 
 ## Resume support
 
