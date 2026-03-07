@@ -1,0 +1,41 @@
+{
+  "name": "sora-gallery",
+  "version": "1.0.0",
+  "description": "Browse your exported Sora generations — no terminal required",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc && xcopy src\\renderer dist\\renderer /E /I /Y /Q",
+    "start": "npm run build && electron .",
+    "dev": "tsc && xcopy src\\renderer dist\\renderer /E /I /Y /Q && electron .",
+    "dist": "npm run build && electron-builder --win"
+  },
+  "build": {
+    "appId": "dev.marta.sora-gallery",
+    "productName": "Sora Gallery",
+    "win": {
+      "target": ["portable"],
+      "icon": "assets/icon.ico",
+      "sign": false
+    },
+    "portable": {
+      "artifactName": "SoraGallery.exe"
+    },
+    "files": [
+      "dist/**/*",
+      "assets/**/*",
+      "node_modules/sql.js/dist/sql-wasm.wasm"
+    ],
+    "directories": {
+      "output": "build"
+    }
+  },
+  "dependencies": {
+    "sql.js": "^1.11.0",
+    "sharp": "^0.33.5"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8",
+    "typescript": "^5.7.0"
+  }
+}

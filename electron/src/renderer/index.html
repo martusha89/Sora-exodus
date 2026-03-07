@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sora Gallery</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #18181b;
+  --bg-card: #27272a;
+  --bg-hover: #3f3f46;
+  --border: #3f3f46;
+  --text: #e4e4e7;
+  --text-dim: #a1a1aa;
+  --accent: #f97316;
+  --accent-hover: #fb923c;
+  --font: Georgia, 'Times New Roman', serif;
+  --mono: 'Consolas', monospace;
+}
+
+html { background: var(--bg); color: var(--text); font-family: var(--font); }
+body { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+
+.welcome {
+  text-align: center;
+  max-width: 520px;
+  padding: 40px;
+}
+
+.welcome h1 {
+  font-size: 2.2rem;
+  color: var(--accent);
+  margin-bottom: 8px;
+  letter-spacing: -1px;
+}
+
+.welcome .subtitle {
+  color: var(--text-dim);
+  font-size: 0.95rem;
+  margin-bottom: 40px;
+  line-height: 1.6;
+}
+
+.welcome .select-btn {
+  display: inline-block;
+  padding: 16px 40px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-family: var(--font);
+  font-size: 1.1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.welcome .select-btn:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+}
+
+.welcome .last-folder {
+  margin-top: 24px;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+.welcome .last-folder button {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 8px 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  font-family: var(--font);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.welcome .last-folder button:hover {
+  background: var(--bg-hover);
+}
+
+.welcome .last-folder .path {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  margin-top: 4px;
+  word-break: break-all;
+}
+
+/* Progress screen */
+.progress-screen {
+  display: none;
+  text-align: center;
+  max-width: 520px;
+  padding: 40px;
+}
+
+.progress-screen h2 {
+  color: var(--accent);
+  margin-bottom: 24px;
+}
+
+.progress-bar-wrap {
+  width: 100%;
+  height: 8px;
+  background: var(--bg-card);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.progress-bar {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+  transition: width 0.3s;
+  width: 0%;
+}
+
+.progress-msg {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  font-family: var(--mono);
+}
+</style>
+</head>
+<body>
+  <div class="welcome" id="welcome">
+    <h1>Sora Gallery</h1>
+    <p class="subtitle">Browse your exported Sora generations.<br>Select the folder containing your exported files to get started.</p>
+    <button class="select-btn" id="selectBtn">Select Folder</button>
+    <div class="last-folder" id="lastFolder" style="display:none"></div>
+  </div>
+
+  <div class="progress-screen" id="progress">
+    <h2>Building Gallery</h2>
+    <div class="progress-bar-wrap"><div class="progress-bar" id="progressBar"></div></div>
+    <div class="progress-msg" id="progressMsg">Starting...</div>
+  </div>
+
+  <script>
+    const api = window.soraGallery;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const lastFolder = await api.getLastFolder();
+
+      if (lastFolder) {
+        const el = document.getElementById('lastFolder');
+        el.style.display = 'block';
+        el.innerHTML = `
+          <p>Last opened:</p>
+          <button id="reopenBtn">Open Previous Gallery</button>
+          <span class="path">${lastFolder}</span>
+        `;
+        document.getElementById('reopenBtn').addEventListener('click', () => openFolder(lastFolder));
+      }
+
+      document.getElementById('selectBtn').addEventListener('click', async () => {
+        const folder = await api.selectFolder();
+        if (folder) openFolder(folder);
+      });
+    });
+
+    async function openFolder(folder) {
+      document.getElementById('welcome').style.display = 'none';
+      document.getElementById('progress').style.display = 'block';
+
+      let currentPhase = '';
+      api.onImportProgress((progress) => {
+        if (progress.phase !== currentPhase) {
+          currentPhase = progress.phase;
+          document.getElementById('progressBar').style.width = '0%';
+        }
+        document.getElementById('progressMsg').textContent = progress.message;
+        if (progress.total > 0) {
+          const pct = Math.round((progress.current / progress.total) * 100);
+          document.getElementById('progressBar').style.width = pct + '%';
+        }
+        if (progress.phase === 'done') {
+          window.location.href = 'gallery.html';
+        }
+      });
+
+      await api.startImport(folder);
+    }
+  </script>
+</body>
+</html>
