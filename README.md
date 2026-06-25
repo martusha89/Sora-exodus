@@ -1,4 +1,12 @@
-# sora-exodus
+<div align="center">
+
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:8B5CF6,100:22D3EE&height=170&section=header&text=sora-exodus&fontColor=ffffff&fontSize=44&fontAlignY=40&desc=Bulk-export%20your%20Sora%20generations%20before%20OpenAI%20pulls%20the%20plug&descSize=16&descAlignY=64" width="100%" />
+
+[![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](#)
+[![Playwright](https://img.shields.io/badge/Playwright-2EAD33?style=for-the-badge&logo=playwright&logoColor=white)](#)
+[![license MIT](https://img.shields.io/badge/license-MIT-A855F7?style=for-the-badge)](LICENSE)
+
+</div>
 
 Bulk export your Sora generations (images, videos, and prompts) before OpenAI shuts down the platform.
 
